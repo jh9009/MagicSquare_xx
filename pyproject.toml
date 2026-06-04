@@ -18,6 +18,7 @@ packages = ["src/entity", "src/control", "src/boundary"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+addopts = ["--import-mode=importlib"]
 markers = [
     "entity: Entity track (Dual-Track TDD)",
     "control: Control track (Dual-Track TDD)",
