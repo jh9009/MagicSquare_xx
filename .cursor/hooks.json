@@ -1,18 +1,4 @@
 {
   "version": 1,
-  "hooks": {
-    "sessionStart": [
-      {
-        "command": ".cursor/hooks/session-init.sh",
-        "timeout": 15
-      }
-    ],
-    "postToolUse": [
-      {
-        "command": ".cursor/hooks/hint-after-src-test-write.sh",
-        "matcher": "Write",
-        "timeout": 15
-      }
-    ]
-  }
+  "hooks": {}
 }

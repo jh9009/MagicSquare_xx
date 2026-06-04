@@ -14,7 +14,7 @@ Mom Test(STEP 1)로 표면 문제(프로그램 일괄 구현)와 **검증 누락
 | 격자 | 4×4 |
 | 빈칸 | `0` (**정확히 2개**) |
 | 숫자 | 1~16 (완성 시 각 1회) |
-| 마법 상수 | **34** (`MagicConstant` SSOT) |
+| 마법 상수 | **34** (`entity/constants.py` SSOT) |
 | 검증 줄 | **10개** — R1–R4, C1–C4, ↘, ↙ |
 | 정답 출력 | `int[6]` = `[r1,c1,n1,r2,c2,n2]` — 좌표 **1-index** |
 
@@ -27,53 +27,43 @@ Mom Test(STEP 1)로 표면 문제(프로그램 일괄 구현)와 **검증 누락
 ```
 MagicSquare_xx/
 ├── src/
-│   ├── entity/          # MagicConstant, locator, 도메인 예외
-│   ├── control/         # line_sums, validator, ValidationResult
-│   └── boundary/        # ErrorCode E001~E007, input_validator
+│   ├── entity/          # constants, locator, solver
+│   ├── control/         # (P1) line_sums, validator
+│   └── boundary/        # (P1) E001~E007, input_validator
 ├── tests/
-│   ├── conftest.py      # G1, T1~T3 격자 fixture
-│   ├── entity/          # Logic Track D-ENT-*, D-LOC-*
-│   ├── control/         # Logic Track D-CTL-*, D-VAL-*
-│   └── boundary/        # UI Track U-IN-*
+│   ├── conftest.py      # grid_g1 fixture
+│   ├── _approval.py     # Golden Master 비교
+│   ├── golden_format.py # int[6] / ERR 직렬화
+│   ├── golden/          # *.approved.txt
+│   ├── entity/          # D-LOC-01, D-SOL-01
+│   ├── control/         # (예정) D-VAL-*
+│   └── boundary/        # (예정) U-IN-*
+├── scripts/
+│   └── verify_green_entity.ps1
 ├── docs/PRD.md
-├── .cursorrules
-└── .cursor/skills/magic-square-tdd/
+├── Report/              # 01~07 세션 보고서
+├── Prompting/           # 01~03 Transcript Export
+└── .cursor/
+    ├── skills/magic-square-tdd/
+    ├── commands/        # tdd-red, review-ecb
+    ├── hooks.json       # 비활성 (hooks: {})
+    └── hooks.enabled.json  # Hook 백업 (재활성용)
 ```
 
 **의존 방향:** `boundary → control → entity` (entity는 상위 레이어 import 금지)
 
 ---
 
-## Dual-Track TDD · RED 스켈레톤
+## 현재 Phase — entity GREEN + Golden
 
-| Track | Layer | ID 접두 | 테스트 | Mock |
-|-------|-------|---------|--------|------|
-| **Logic** | entity, control | `D-*` | `test_d_*.py` | Domain Mock **금지** |
-| **UI** | boundary | `U-*` | `test_u_*.py` | control 호출 Mock **허용** |
+| Track | Layer | Test ID | 상태 |
+|-------|-------|---------|------|
+| Logic | entity | **D-LOC-01** | ✅ GREEN — `find_blank_coords` → `[(2,2),(3,3)]` |
+| Logic | entity | **D-SOL-01** | ✅ GREEN + **Golden matched** |
+| Logic | control | D-VAL-01~03 | ⏳ 미구현 |
+| UI | boundary | U-IN-01~03 | ⏳ 미구현 |
 
-현재 **Phase: RED** — `src/`는 스켈레톤(의도적 미구현·오답 반환), 대부분 테스트는 **FAIL**이 정상입니다.  
-`D-ENT-01`(`MagicConstant`)만 SSOT 상수로 **통과**합니다.
-
-### Logic Track (RED)
-
-| Test ID | 파일 | 기대 (GREEN 후) |
-|---------|------|-----------------|
-| D-ENT-01 | `test_d_magic_constant.py` | SSOT 상수 ✅ |
-| D-LOC-01~03 | `test_d_loc_01.py` | G1 빈칸 좌표 row-major |
-| D-CTL-01 | `test_d_line_sums.py` | 10줄 합 |
-| D-VAL-01 | `test_d_val_01_wrong_diagonal.py` | T1 ↘36 → FAIL |
-| D-VAL-02 | `test_d_val_02_all_lines_pass.py` | T2 → PASS |
-| D-VAL-03 | `test_d_val_03_incomplete_blank.py` | T3 → INCOMPLETE |
-
-### Boundary Track (RED)
-
-| Test ID | 파일 | 기대 (GREEN 후) |
-|---------|------|-----------------|
-| U-IN-01 | `test_u_in_01.py` | `grid=None` → E003 |
-| U-IN-02 | 동일 | 3×4 → E001 |
-| U-IN-03 | 동일 | 빈칸 0개 → E002 |
-
-테스트 ID 전체: [`.cursor/skills/magic-square-tdd/reference.md`](.cursor/skills/magic-square-tdd/reference.md)
+테스트 ID: [`.cursor/skills/magic-square-tdd/reference.md`](.cursor/skills/magic-square-tdd/reference.md)
 
 ---
 
@@ -82,40 +72,54 @@ MagicSquare_xx/
 ```powershell
 git clone https://github.com/jh9009/MagicSquare_xx.git
 Set-Location MagicSquare_xx
+
+# 가상환경 (권장)
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
 ```
 
-### pytest
+### entity GREEN · Golden 한 번에 검증
 
 ```powershell
-# 전체 (RED: 다수 FAILED가 정상)
-python -m pytest tests/ -v
-
-# Logic Track만
-python -m pytest tests/entity tests/control -v
-
-# Boundary Track만
-python -m pytest tests/boundary -v
-
-# 대표 RED 1건 (Mom Test T1)
-python -m pytest tests/control/test_d_val_01_wrong_diagonal.py -v
-
-# 빈칸 좌표 RED
-python -m pytest tests/entity/test_d_loc_01.py::test_d_loc_01_blank_coords_row_major -v
-
-# boundary 입력 RED
-python -m pytest tests/boundary/test_u_in_01.py::test_u_in_01_null_grid_returns_e003 -v
+.\scripts\verify_green_entity.ps1
 ```
 
-**RED 성공 기준:** 의도한 테스트가 `FAILED` / `AssertionError`. `skip`·`xfail`·assert 완화 금지.
+### pytest (개별)
+
+```powershell
+# entity 전체 (현재 2건)
+python -m pytest tests/entity/ -v
+
+# D-LOC-01
+python -m pytest tests/entity/test_d_loc_01.py::test_d_loc_01_blank_coords_row_major -v
+
+# D-SOL-01 + golden matched 메시지
+python -m pytest tests/entity/test_d_sol_01.py::test_d_sol_01_step_a_success -v -s
+```
+
+Golden 기준 파일 갱신 (포맷·구현 변경 시만):
+
+```powershell
+$env:UPDATE_GOLDEN = "1"
+python -m pytest tests/entity/test_d_sol_01.py::test_d_sol_01_step_a_success -v
+Remove-Item Env:UPDATE_GOLDEN
+```
+
+**TDD 규칙:** `skip`·`xfail`·assert 완화 금지. RED 단계는 의도적 `FAILED` / `pytest.fail`.
 
 ### Cursor
 
 | 리소스 | 용도 |
 |--------|------|
 | `.cursorrules` | 도메인·ECB·TDD 헌법 |
-| `/tdd-red` | RED 단계 절차 |
+| `/tdd-red` | RED 단계 |
 | `/review-ecb` | 계약 리뷰 (읽기 전용) |
+| `.cursor/hooks.json` | **비활성** (`hooks: {}`) — 콘솔 창 이슈로 Hook 끔 |
+| `.cursor/hooks.enabled.json` | Hook 설정 백업 (필요 시 `hooks.json`으로 복원) |
+
+Hook 스크립트(`.cursor/hooks/*.sh`)는 보관만 하며 **자동 실행되지 않습니다.** 상세: [Report/07](Report/07.MagicSquare_Hooks_Disabled_Report.md).
 
 ---
 
@@ -124,8 +128,13 @@ python -m pytest tests/boundary/test_u_in_01.py::test_u_in_01_null_grid_returns_
 | 경로 | 설명 |
 |------|------|
 | [Report/01.MagicSquare_ProblemDefinition_Report.md](Report/01.MagicSquare_ProblemDefinition_Report.md) | Mom Test · 문제 정의 |
-| [docs/PRD.md](docs/PRD.md) | FR/AC, T1~T3, 마일스톤 |
-| [Report/03.MagicSquare_Session3_Cursor_Design_Report.md](Report/03.MagicSquare_Session3_Cursor_Design_Report.md) | Cursor 8계층 설계 |
+| [docs/PRD.md](docs/PRD.md) | FR/AC, T1~T3 |
+| [Report/03.MagicSquare_Session3_Cursor_Design_Report.md](Report/03.MagicSquare_Session3_Cursor_Design_Report.md) | Cursor 8계층 |
+| [Report/04.MagicSquare_D_LOC01_RED_Skeleton_Report.md](Report/04.MagicSquare_D_LOC01_RED_Skeleton_Report.md) | D-LOC-01 RED |
+| [Report/05.MagicSquare_GREEN_PASS_Entity_Report.md](Report/05.MagicSquare_GREEN_PASS_Entity_Report.md) | GREEN PASS 게이트 |
+| [Report/06.MagicSquare_Entity_GREEN_Golden_Report.md](Report/06.MagicSquare_Entity_GREEN_Golden_Report.md) | GREEN · Golden 세션 |
+| [Report/07.MagicSquare_Hooks_Disabled_Report.md](Report/07.MagicSquare_Hooks_Disabled_Report.md) | Cursor Hooks 비활성화 |
+| [Prompting/03.MagicSquare_Session5_Export_Transcript.md](Prompting/03.MagicSquare_Session5_Export_Transcript.md) | 세션 5 Transcript |
 
 ---
 
@@ -134,17 +143,19 @@ python -m pytest tests/boundary/test_u_in_01.py::test_u_in_01_null_grid_returns_
 | Phase | 상태 | 내용 |
 |-------|------|------|
 | **P0** | ✅ | Mom Test · PRD · Harness |
-| **P1** | ⏳ | RED 스켈레톤 → GREEN `validate` + T1~T3 |
-| **P2** | — | SquareValidator · Entity 연동 |
-| **P3** | — | Solver, Boundary UI (별도 PRD) |
+| **P1** | ⏳ | entity D-LOC/D-SOL GREEN · control/boundary RED 대기 |
+| **P2** | — | SquareValidator · 10줄 검증 |
+| **P3** | — | Boundary UI, Solver 확장 |
 
-**Non-Goals:** Solver, GridUI, ECB 일괄 구현 (명시 요청 전)
+**Non-Goals:** GridUI, ECB 일괄 구현 (명시 요청 전)
 
 ---
 
 ## 저장소
 
 https://github.com/jh9009/MagicSquare_xx
+
+브랜치 예: `main`, `red`, `green` — 최신 entity GREEN은 로컬 `green` 브랜치에 있을 수 있음.
 
 ---
 
